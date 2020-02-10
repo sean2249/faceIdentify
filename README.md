@@ -13,16 +13,16 @@ FaceIdentify Application
 
 ## Usage:
 ### Train from folder
-- `$ python performance.py --train --input <IMAGE FOLDER> --output <MODEL DUMP(*.npy)>`
+- `$ python identify.py --train --input <IMAGE FOLDER> --output <MODEL DUMP(*.npy)>`
 
 ### Load from model file(*.npy)
-- `$ python performance.py --load --input <MODEL(*.npy)>`
+- `$ python identify.py --load --input <MODEL(*.npy)>`
 
 ### Test image similarity
-- `$ python performance.py --load --input <MODEL(*.npy> --test <IMAGE PATH>`
+- `$ python identify.py --load --input <MODEL(*.npy> --test <IMAGE PATH>`
 
 ### Test from webcam
-- `$ python performance.py --load --input <MODEL(*.npy> --stream <WEBCAM INDEX>`
+- `$ python identify.py --load --input <MODEL(*.npy> --stream <WEBCAM INDEX>`
 
 ### Additional
 Argument::`show` will display image with result. If this argument enable in training, it will block progress until user click.
