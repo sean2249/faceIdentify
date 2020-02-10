@@ -96,7 +96,7 @@ class FaceExtractor:
         # img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         # rects, scores, idx = self.face_detector.run(img_gray, 1)
         # img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        rects, scores, idx = self.face_detector.run(img, 1)
+        rects, scores, idx = self.face_detector.run(img, 0)
 
         if len(rects) == 0:
             return False, None

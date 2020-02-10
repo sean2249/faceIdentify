@@ -1,21 +1,21 @@
 # coding: utf-8
-import os
-import argparse
+from performance import FaceIdentify
 
-import cv2
-import numpy as np
-
-from core.face_extractor import FaceExtractor, show_image
-from core.face_recognize import FaceIdentify
-
-class Identify:
+class FaceRecognize:
     @classmethod
-    def load_from_model(cls, filename, show):
+    def load_from_numpy(cls, filename, show):
         if not os.path.isfile(filename):
-            print('Wrong file path {}'.format(filename))
+            print('Wrong pickle file path {}'.format(filename))
             exit()
         else:
-            return cls(model=filename)
+            try:
+                feature = np.load(filename)
+                print('Model have {} samples'.format(feature.shape[0]))
+                return cls(model=feature, show=show)
+
+            except IOError:
+                print('Wrong numpy format in file {}'.format(filename))
+                exit()
 
     @classmethod
     def train_from_folder(cls, folder, save_model, show):
@@ -23,20 +23,54 @@ class Identify:
             print('Wrong folder path {}'.format(folder))
             exit()
         else:
-            return cls(folder=folder, save_model=save_model, show=show)
+            # return cls(folder=folder, save_model=save_model, show=show)
 
     def __init__(self, show=False, model=None, folder=None, save_model=None):
         self.show = show
         self.frtool = FaceExtractor()
-        self.fr_recog = FaceIdentify(show)
+        self.frclassifier = FaceClassifier(model)
 
         if model is not None:
-            self.fr_recog.load(model)
+            self.features = model
+
         elif folder is not None:
-            self.fr_recog.train(folder, save_model)
+            self.features = self.train(folder, save_model)
         else:
             print('ERROR')
             exit()
+
+    def train(self, folder, save_model):
+        filenames = os.listdir(folder)
+
+        features = list()
+        project_root = os.getcwd()
+        print('Get {} files'.format(len(filenames)))
+        for filename in filenames:
+            filepath = os.path.join(project_root, folder, filename)
+
+            img = cv2.imread(filepath)
+            if img is not None:
+                feature = self.frtool.extract_feature(img, self.show)
+                if feature is not None:
+                    features.append(feature)
+                else:
+                    print('Cannot found face in {}'.format(filepath))
+            else:
+                print('Cannot read file {}'.format(filepath))
+
+        if len(features) == 0:
+            print('Cannot extract any feature from folder {}'.format(folder))
+        else:
+            features = np.array(features)
+            num_samples = features.shape[0]
+            print('Get {} samples'.format(num_samples))
+            if save_model is None:
+                np.save('model', features)
+                print('Save to model.npy')
+            else:
+                np.save(save_model, features)
+                print('save to {}'.format(save_model))
+            return features
 
     def predict_image(self, filename):
         if len(filename) == 0:
@@ -51,8 +85,10 @@ class Identify:
         if feature is None:
             print('Cannot found face in {}'.format(filename))
         else:
-            dist = self.fr_recog.identify(feature)
+            dist = self.frclassifier.identify(feature)
             print(dist)
+            # dist = np.linalg.norm(self.features-feature, axis=1)
+            # print(np.mean(dist))
 
     def predict_from_stream(self, web_cam_idx):
         if web_cam_idx == -1:
@@ -74,14 +110,13 @@ class Identify:
                 if feature is None:
                     is_open = show_image(flip_frame, text='No Face', is_block=False)
                 else:
-                    avg_dist = self.fr_recog.identify(feature)
+                    avg_dist = self.frclassifier.identify(feature)
                     # print(dist)
                     text = 'Similarity: {:.5f}'.format(avg_dist)
                     is_open = show_image(flip_frame, text=text, is_block=False)
 
-            
 def create_argparser():
-    parser = argparse.ArgumentParser(description='FaceIdentify')
+    parser = argparse.ArgumentParser(description='FaceRecognition')
 
     mutual = parser.add_mutually_exclusive_group(required=True)
     mutual.add_argument('--load', action='store_true', default=False, help='Load from model file (*.npy)')
@@ -95,15 +130,3 @@ def create_argparser():
     parser.add_argument('--show', action='store_true', default=False, help='IS show frame')
 
     return parser.parse_args()
-
-if __name__ == '__main__':
-    args = create_argparser()
-    print(args)
-
-    if args.train:
-        frtool = Identify.train_from_folder(args.input, args.output, args.show)
-    elif args.load:
-        frtool = Identify.load_from_model(args.input, args.show)
-
-    frtool.predict_image(args.test)
-    frtool.predict_from_stream(args.stream)

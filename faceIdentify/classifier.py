@@ -6,32 +6,29 @@ import cv2
 import numpy as np
 
 from core.face_extractor import FaceExtractor, show_image
-from core.face_recognize import FaceIdentify
+from core.face_recognize import FaceClassifier
 
-class Identify:
+class Classifier:
     @classmethod
     def load_from_model(cls, filename, show):
         if not os.path.isfile(filename):
-            print('Wrong file path {}'.format(filename))
+            print('Wrong model file path {}'.format(filename))
             exit()
         else:
-            return cls(model=filename)
+            return cls(model=filename, show=show)
 
     @classmethod
-    def train_from_folder(cls, folder, save_model, show):
-        if not os.path.isdir(folder):
-            print('Wrong folder path {}'.format(folder))
-            exit()
-        else:
-            return cls(folder=folder, save_model=save_model, show=show)
+    def train_from_folder(cls, root, save_model, show):
+        return cls(folder=root, save_model=save_model, show=show)
 
     def __init__(self, show=False, model=None, folder=None, save_model=None):
         self.show = show
         self.frtool = FaceExtractor()
-        self.fr_recog = FaceIdentify(show)
+        self.fr_recog = FaceClassifier()
 
         if model is not None:
             self.fr_recog.load(model)
+
         elif folder is not None:
             self.fr_recog.train(folder, save_model)
         else:
@@ -51,8 +48,11 @@ class Identify:
         if feature is None:
             print('Cannot found face in {}'.format(filename))
         else:
-            dist = self.fr_recog.identify(feature)
-            print(dist)
+            result = self.fr_recog.recog_proba(feature)
+            # dist = self.fr_recog.identify(feature)
+            print(result)
+            # dist = np.linalg.norm(self.features-feature, axis=1)
+            # print(np.mean(dist))
 
     def predict_from_stream(self, web_cam_idx):
         if web_cam_idx == -1:
@@ -74,18 +74,21 @@ class Identify:
                 if feature is None:
                     is_open = show_image(flip_frame, text='No Face', is_block=False)
                 else:
-                    avg_dist = self.fr_recog.identify(feature)
+                    user, proba = self.fr_recog.recog_proba(feature)
+                    # print(user, proba)
+                    # avg_dist = self.fr_recog.recog(feature)
                     # print(dist)
-                    text = 'Similarity: {:.5f}'.format(avg_dist)
+                    # text = 'Similarity: {:.5f}'.format(avg_dist)
+                    text = 'User: {}-{}'.format(user, np.max(proba))
                     is_open = show_image(flip_frame, text=text, is_block=False)
 
             
 def create_argparser():
-    parser = argparse.ArgumentParser(description='FaceIdentify')
+    parser = argparse.ArgumentParser(description='FaceRecognition')
 
     mutual = parser.add_mutually_exclusive_group(required=True)
-    mutual.add_argument('--load', action='store_true', default=False, help='Load from model file (*.npy)')
-    mutual.add_argument('--train',action='store_true', default=False, help='Train model from images in folder')
+    mutual.add_argument('--load', action='store_true', default=False, help='Load from model file (*.pkl)')
+    mutual.add_argument('--train',action='store_true', default=False, help='Train model from subfolder of images in folder')
 
     parser.add_argument('--input', '-i', type=str, required=True)
     parser.add_argument('--output', '-o', type=str, help='From TRAIN, path to save model')
@@ -101,9 +104,9 @@ if __name__ == '__main__':
     print(args)
 
     if args.train:
-        frtool = Identify.train_from_folder(args.input, args.output, args.show)
+        frtool = Classifier.train_from_folder(args.input, args.output, args.show)
     elif args.load:
-        frtool = Identify.load_from_model(args.input, args.show)
+        frtool = Classifier.load_from_model(args.input, args.show)
 
     frtool.predict_image(args.test)
     frtool.predict_from_stream(args.stream)
